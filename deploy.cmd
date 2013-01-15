@@ -46,22 +46,54 @@ IF NOT DEFINED KUDU_SYNC_COMMAND (
   :: Locally just running "kuduSync" would also work
   SET KUDU_SYNC_COMMAND=node "%appdata%\npm\node_modules\kuduSync\bin\kuduSync"
 )
+goto Deployment
+
+:: Utility Functions
+:: -----------------
+
+:SelectNodeVersion
+
+IF DEFINED KUDU_SELECT_NODE_VERSION_COMMAND (
+  :: The following are done only on Windows Azure Websites environment
+  call %KUDU_SELECT_NODE_VERSION_COMMAND% "%DEPLOYMENT_SOURCE%" "%DEPLOYMENT_TARGET%" "%DEPLOYMENT_TEMP%"
+  IF !ERRORLEVEL! NEQ 0 goto error
+
+  IF EXIST "%DEPLOYMENT_TEMP%\__nodeVersion.tmp" (
+    SET /p NODE_EXE=<"%DEPLOYMENT_TEMP%\__nodeVersion.tmp"
+    IF !ERRORLEVEL! NEQ 0 goto error
+  )
+
+  IF NOT DEFINED NODE_EXE (
+    SET NODE_EXE=node
+  )
+
+  SET NPM_COMMAND="!NODE_EXE!" "%NPM_JS_PATH%"
+) ELSE (
+  SET NPM_COMMAND=npm
+  SET NODE_EXE=node
+)
+
+goto :EOF
 
 ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 :: Deployment
 :: ----------
 
+:Deployment
 echo Handling node.js deployment.
 
 :: 1. KuduSync
 echo Kudu Sync from "%DEPLOYMENT_SOURCE%" to "%DEPLOYMENT_TARGET%"
-call %KUDU_SYNC_COMMAND% -q -f "%DEPLOYMENT_SOURCE%" -t "%DEPLOYMENT_TARGET%" -n "%NEXT_MANIFEST_PATH%" -p "%PREVIOUS_MANIFEST_PATH%" -i ".git;.deployment;deploy.cmd" 2>nul
+call %KUDU_SYNC_COMMAND% -v 50 -f "%DEPLOYMENT_SOURCE%" -t "%DEPLOYMENT_TARGET%" -n "%NEXT_MANIFEST_PATH%" -p "%PREVIOUS_MANIFEST_PATH%" -i ".git;.hg;.deployment;deploy.cmd" 2>nul
 IF !ERRORLEVEL! NEQ 0 goto error
 
-:: 2. Install npm packages
+:: 2. Select node version
+call :SelectNodeVersion
+
+:: 3. Install npm packages
 IF EXIST "%DEPLOYMENT_TARGET%\package.json" (
   pushd %DEPLOYMENT_TARGET%
-  call npm install --production
+  call %NPM_COMMAND% install --production
   IF !ERRORLEVEL! NEQ 0 goto error
   popd
 )
