@@ -37,14 +37,14 @@ IF NOT DEFINED NEXT_MANIFEST_PATH (
   )
 )
 
-IF NOT DEFINED KUDU_SYNC_COMMAND (
+IF NOT DEFINED KUDU_SYNC_CMD (
   :: Install kudu sync
   echo Installing Kudu Sync
   call npm install kudusync -g --silent
   IF !ERRORLEVEL! NEQ 0 goto error
 
   :: Locally just running "kuduSync" would also work
-  SET KUDU_SYNC_COMMAND=node "%appdata%\npm\node_modules\kuduSync\bin\kuduSync"
+  SET KUDU_SYNC_CMD=node "%appdata%\npm\node_modules\kuduSync\bin\kuduSync"
 )
 goto Deployment
 
@@ -53,9 +53,9 @@ goto Deployment
 
 :SelectNodeVersion
 
-IF DEFINED KUDU_SELECT_NODE_VERSION_COMMAND (
+IF DEFINED KUDU_SELECT_NODE_VERSION_CMD (
   :: The following are done only on Windows Azure Websites environment
-  call %KUDU_SELECT_NODE_VERSION_COMMAND% "%DEPLOYMENT_SOURCE%" "%DEPLOYMENT_TARGET%" "%DEPLOYMENT_TEMP%"
+  call %KUDU_SELECT_NODE_VERSION_CMD% "%DEPLOYMENT_SOURCE%" "%DEPLOYMENT_TARGET%" "%DEPLOYMENT_TEMP%"
   IF !ERRORLEVEL! NEQ 0 goto error
 
   IF EXIST "%DEPLOYMENT_TEMP%\__nodeVersion.tmp" (
@@ -67,9 +67,9 @@ IF DEFINED KUDU_SELECT_NODE_VERSION_COMMAND (
     SET NODE_EXE=node
   )
 
-  SET NPM_COMMAND="!NODE_EXE!" "%NPM_JS_PATH%"
+  SET NPM_CMD="!NODE_EXE!" "%NPM_JS_PATH%"
 ) ELSE (
-  SET NPM_COMMAND=npm
+  SET NPM_CMD=npm
   SET NODE_EXE=node
 )
 
@@ -83,8 +83,7 @@ goto :EOF
 echo Handling node.js deployment.
 
 :: 1. KuduSync
-echo Kudu Sync from "%DEPLOYMENT_SOURCE%" to "%DEPLOYMENT_TARGET%"
-call %KUDU_SYNC_COMMAND% -v 50 -f "%DEPLOYMENT_SOURCE%" -t "%DEPLOYMENT_TARGET%" -n "%NEXT_MANIFEST_PATH%" -p "%PREVIOUS_MANIFEST_PATH%" -i ".git;.hg;.deployment;deploy.cmd" 2>nul
+call %KUDU_SYNC_CMD% -v 50 -f "%DEPLOYMENT_SOURCE%" -t "%DEPLOYMENT_TARGET%" -n "%NEXT_MANIFEST_PATH%" -p "%PREVIOUS_MANIFEST_PATH%" -i ".git;.hg;.deployment;deploy.cmd" 2>nul
 IF !ERRORLEVEL! NEQ 0 goto error
 
 :: 2. Select node version
@@ -93,7 +92,7 @@ call :SelectNodeVersion
 :: 3. Install npm packages
 IF EXIST "%DEPLOYMENT_TARGET%\package.json" (
   pushd %DEPLOYMENT_TARGET%
-  call %NPM_COMMAND% install --production
+  call %NPM_CMD% install --production
   IF !ERRORLEVEL! NEQ 0 goto error
   popd
 )
@@ -105,7 +104,7 @@ echo custom deployment success
 goto end
 
 :error
-echo An error has occured during web site deployment.
+echo An error has occurred during web site deployment.
 exit /b 1
 
 :end
